@@ -1,14 +1,24 @@
 package com.example.ronhfreeman.getbabysitter.fragments;
 
+import android.app.Fragment;
 import android.content.Context;
+import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.TextView;
 
 import com.example.ronhfreeman.getbabysitter.R;
+import com.facebook.CallbackManager;
+import com.facebook.FacebookCallback;
+import com.facebook.FacebookException;
+import com.facebook.login.LoginResult;
+import com.facebook.login.widget.LoginButton;
+
+import butterknife.BindView;
+import butterknife.ButterKnife;
 
 
 /**
@@ -62,11 +72,59 @@ public class LoginFragment extends Fragment {
         }
     }
 
+    // Data members
+    @BindView(R.id.login_button)
+    public LoginButton loginButton;
+
+    @BindView(R.id.info)
+    public TextView txtInfo;
+
+    private CallbackManager callbackManager;
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_login, container, false);
+        View view = inflater.inflate(R.layout.fragment_login,container, false);
+
+        // Set the butter knife
+        ButterKnife.bind(this, view);
+
+        // Get the facebook call manager
+        callbackManager = CallbackManager.Factory.create();
+
+        // Set read permissions
+        loginButton.setReadPermissions("email");
+
+        // If using in a fragment
+        loginButton.setFragment(this);
+
+        // Callback registration
+        loginButton.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
+                    @Override
+                    public void onSuccess(LoginResult loginResult) {
+                        txtInfo.setText(
+                                "User ID: "
+                                        + loginResult.getAccessToken().getUserId()
+                                        + "\n" +
+                                        "Auth Token: "
+                                        + loginResult.getAccessToken().getToken()
+                        );
+                    }
+
+                    @Override
+                    public void onCancel() {
+                        txtInfo.setText("Login attempt canceled.");
+                    }
+
+                    @Override
+                    public void onError(FacebookException exception) {
+                        txtInfo.setText("Login attempt failed.");
+
+                    }
+                });
+
+       return (view);
     }
 
     // TODO: Rename method, update argument and hook method into UI event
@@ -106,5 +164,10 @@ public class LoginFragment extends Fragment {
     public interface OnFragmentInteractionListener {
         // TODO: Update argument type and name
         void onFragmentInteraction(Uri uri);
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        callbackManager.onActivityResult(requestCode, resultCode, data);
     }
 }
