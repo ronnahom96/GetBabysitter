@@ -11,16 +11,24 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import com.example.ronhfreeman.getbabysitter.R;
+import com.example.ronhfreeman.getbabysitter.RetrofitService;
+import com.example.ronhfreeman.getbabysitter.modules.Babysitter;
+import com.example.ronhfreeman.getbabysitter.modules.BaseUser;
+import com.facebook.AccessToken;
 import com.facebook.CallbackManager;
 import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
 import com.facebook.GraphRequest;
 import com.facebook.GraphResponse;
+import com.facebook.HttpMethod;
 import com.facebook.login.LoginResult;
 import com.facebook.login.widget.LoginButton;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.math.BigInteger;
+import java.util.Date;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -79,27 +87,61 @@ public class LoginFragment extends Fragment {
 
         // Callback registration
         loginButton.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
-                    @Override
-                    public void onSuccess(LoginResult loginResult) {
-                        txtInfo.setText("User ID: " + loginResult.getAccessToken().getUserId() + "\n" +
-                                        "Auth Token: " + loginResult.getAccessToken().getToken());
+            @Override
+            public void onSuccess(LoginResult loginResult) {
+                Bundle params = new Bundle();
+                params.putString("fields", "id,name,about,bio,email,birthday,first_name,gender,last_name");
+                //params.putString("fields", "id,name");
 
-                        // Get the details from the user
-                        GraphRequest request = GraphRequest.newMeRequest(
-                                loginResult.getAccessToken(),
-                                new GraphRequest.GraphJSONObjectCallback() {
-                                    @Override
-                                    public void onCompleted(JSONObject object, GraphResponse response) {
-                                        txtInfo.setText(object.toString());
+                // Get the details from the user
+                new GraphRequest(
+                        AccessToken.getCurrentAccessToken(),
+                        "/me/",
+                        params,
+                        HttpMethod.GET,
+                        new GraphRequest.Callback() {
+                            public void onCompleted(GraphResponse response) {
+                                try {
+                                    txtInfo.setText(response.getJSONObject().getString("id").toString());
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
+                                try {
+                                    // Get the json object
+                                    JSONObject myFaceBookJsonObject = response.getJSONObject();
+
+                                    // Get the fields from the json
+                                    BigInteger fbid = BigInteger.valueOf(myFaceBookJsonObject.getInt("id"));
+                                    String firstName = myFaceBookJsonObject.getString("first_name");
+                                    String lastName = myFaceBookJsonObject.getString("last_name");
+                                    String bio = myFaceBookJsonObject.getString("bio");
+                                    String email = myFaceBookJsonObject.getString("email");
+                                    Date birthday = (Date) myFaceBookJsonObject.get("birthday");
+
+                                    // Use retrofit to get the user from the db
+                                    JSONObject checkLoggedJson =
+                                            RetrofitService.getWs().getUserByFbId(fbid);
+
+                                    // Check if the user is null namely check if the user is register to the db
+                                    if (checkLoggedJson == null) {
+                                        // Get the details from the
+                                        BaseUser baseUser = new BaseUser();
+                                        // Create the user
+                                        JSONObject idJson = RetrofitService.getWs().registerBabysitter(new Babysitter());
                                     }
-                                });
-                        request.executeAsync();
-                    }
 
-                    @Override
-                    public void onCancel() {
-                        txtInfo.setText("Login attempt canceled.");
-                    }
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                ).executeAsync();
+            }
+
+            @Override
+            public void onCancel() {
+                txtInfo.setText("Login attempt canceled.");
+            }
 
                     @Override
                     public void onError(FacebookException exception) {
